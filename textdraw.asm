@@ -1,163 +1,150 @@
-. DRAW
-. enter a command (or more commands) to stdin and press enter to draw
-. commands:
-. - h : displays help on stdout
-. - w, a, s, d : moveUp, moveLeft, moveDown, moveRight
-. - f : changes drawing symbol to next typed character
-. - c : clears the screen and returns to center
-. - p : fills the screen with drawing symbol
-. - q : halt
-.
-. examples:    'aaaa wwww dddd ssss' -> draws a 4x4 square
-.              'f.' -> changes drawing symbol to '.'
-.              'f-dddf df-dddf df-ddd' -> draws a dashed line '--- --- ---'
-.
 draw START 0 
-reset LDA screenColumns            . calculate center:  X = (screenColumns/2) * screenRows  
+reset LDA screenColumns            .calling reset will calculate center:  X = (screenColumns/2) * screenRows  
 	DIV #2
 	MUL screenRows
 	RMO A, X                   . set X to center coordinate
-	J help                     . display help (comment this line to skip it)
-	J printMousePtr                         
+	J help                     . as the program start display help
+	J printMousePtr            . jump to printMouseptr           
 	
 input RD #0
+
 	COMP #10                   
-	JEQ input                  . newline, ignore
-	COMP #113
-	JEQ halt                   . q, halt 
-	COMP #102
-	JEQ switch                 . f, change drawing symbol
-	COMP #99
-	JEQ clearScreen                  . c, clearScreen screen
-	COMP #112
-	JEQ fillScreen                   . p, fillScreen screen
+	JEQ input                  . newline,basically like ignore
 	COMP #104
-	JEQ help                   . h, help
+	JEQ help                   . pressing h,will display the commands
+	COMP #99
+	JEQ clearScreen            . pressing c,clears the whole screen
+	COMP #112
+	JEQ fillScreen             . pressing p,fills the whole screen
 	COMP #119
-	JEQ moveUp                     . w a s d za premikanje kurzorja
+	JEQ moveUp                 . pressing w,will move the mousepointer upwards
 	COMP #97
-	JEQ moveLeft
+	JEQ moveLeft               . pressing a,will move the mousepointer leftwards
 	COMP #115
-	JEQ moveDown
+	JEQ moveDown               . pressing s,will move the mousepointer downwards
 	COMP #100
-	JEQ moveRight
+	JEQ moveRight              . pressing d,will move the mousepointer rightwards
+	COMP #113
+	JEQ halt                   . pressing q,will halt the running execution 
+	COMP #102
+	JEQ switch                 . pressing f along with the character will change the drawing symbol
 	J input
 	
-	                          . switch the drawing symbol 
-switch RD #0                
+	                          
+switch RD #0                       .This is called when user enter f,for switching the drawing symbol 
 	COMP #10                    
-	JEQ switch                . newline is ignored, read another character
-	STA symbol
+	JEQ switch                 
+	STA symbol                 .The character entered along with f,is stored in the variable symbol
 	J input                  
 
 
-printMousePtr LDA mousePtr         . print mousePtr to coordinate in X
+printMousePtr LDA mousePtr         .This will the print mousePtr to coordinate stored in X
 	+STCH screen, X
 	J input
 	
 	
-	                          . fillScreen screen - load symbol and call screenFill
-fillScreen LDA symbol
-	JSUB screenFill
+	                          
+fillScreen LDA symbol               .This will first load the symbol 
+	JSUB screenFill             .Here it will then call the subroutine screenFill
 	J reset
 	
-	                          . clearScreen screen - call screenClear
-clearScreen JSUB screenClear    
+	                          
+clearScreen JSUB screenClear        .On calling the clearScreen - it will call the subroutine screenClear
 	J reset
 
 
-screenClear STA tempA           . save A to tempA, set it to space and call writeLastA
-	LDA #32 
-	J writeLastA
+screenClear STA tempA               .it will first store the value of accumulator to tempA
+	LDA #32                     .It will then set Accumulator to space
+	J writeLastA                .Then it will call writeLastA
 	
-screenFill STA tempA            . save A to tempA and call writeLastA
-	J writeLastA
+screenFill STA tempA                .it will first store the value of accumulator to tempA
+	J writeLastA                .Then it will call writeLastA
 	
-	                          . move moveLeft
-moveLeft LDA symbol             
-	+STCH screen, X           . draw symbol to X
-	RMO X, A
-	DIV screenColumns               . calculate current row ( X / screenColumns)
-	STA currentRow
-	LDA #1
-	SUBR A, X                 . move X one to moveLeft
-	RMO X, A                  . if X moved too far moveLeft, it will be one row higher on the moveRight side
-	DIV screenColumns               
-	COMP currentRow               . X / screenColumns gives us the row X is on
-	JLT addScreenColoumns               . if calculated row is lower than currentRow, move one moveDown 
-	J printMousePtr
+	                          
+moveLeft LDA symbol               . First load the symbol into accumulator
+	+STCH screen, X           . draw symbol in X to the screen
+	RMO X, A                    
+	DIV screenColumns         .calculate the current row i.e. by dividing X with screenColumns
+	STA currentRow            .store in the currentRow,the value calculated
+	LDA #1                    .load 1 in accumulator
+	SUBR A, X                 .move X one to moveLeft
+	RMO X, A                  .if X moved too far moveLeft, it will be one row higher on the moveRight side
+	DIV screenColumns         .dividing X by screenColumns gives us the row X is on     
+	COMP currentRow            
+	JLT addScreenColoumns     .if calculated row is lower than currentRow, move one moveDown 
+	J printMousePtr           .jump to printMousePointer
 
-addScreenColoumns LDA screenColumns         . add screenColumns (move X one moveDown)
-	ADDR A, X
-	J printMousePtr
+addScreenColoumns LDA screenColumns     .load screeColoumns into the Accumulator
+	ADDR A, X                       .add screenColumns i.e. move X one moveDown
+	J printMousePtr                 .jump to printMousePtr
 	
-	                          . move moveRight - almost the same as moveUp
-moveRight LDA symbol
-	+STCH screen, X           . draw symbol, move X to moveRight, check if we went too far
+	                          
+moveRight LDA symbol                    . First load the symbol into accumulator
+	+STCH screen, X                 . draw symbol, check if we went too far
 	RMO X, A
-	DIV screenColumns
-	STA currentRow
-	LDA #1
-	ADDR A, X
+	DIV screenColumns               . calculate the current row i.e. by dividing X with screenColumns
+	STA currentRow                  . store in the currentRow,the value calculated
+	LDA #1                          . load 1 in accumulator
+	ADDR A, X                       .  move X to moveRight
 	RMO X, A
-	DIV screenColumns
-	JGT subtractScreenColoumns              . if calculated row is too high, move X one row moveUp
+	DIV screenColumns               . calculate again the calcualted row
+	JGT subtractScreenColoumns      . if calculated row is too high, move X one row moveUp
 	J printMousePtr
 
 
 
-subtractScreenColoumns LDA screenColumns        . subtract screenColumns (move X one moveUp)
-	SUBR A, X
-	J printMousePtr
+subtractScreenColoumns LDA screenColumns         . load screenColumns in Accumulator
+	SUBR A, X                                . Subtract register A and X i.e. move X one moveUp
+	J printMousePtr                          . jump to printMousePtr
 
-	                          . move moveUp
-moveUp LDA symbol
-	+STCH screen, X           . print symbol on current X (location of mousePtr) 
-	LDA screenColumns               . move X moveUp (X = X - screenColumns)
-	SUBR A, X
-	LDA #0                    
-	COMPR X, A                . if X is too far moveUp, move it to bottom of the screen 
-	JLT addLength               
-	J printMousePtr  
+	                          
+moveUp LDA symbol                   . First Load the symbol
+	+STCH screen, X             . Then print symbol on current X i.e. location of mousePtr
+	LDA screenColumns           . load screenColumns into Accumulator. move X moveUp (X = X - screenColumns)
+	SUBR A, X                   . Subtract register A and X
+	LDA #0                      . Load 0 in the accumulator
+	COMPR X, A                  . this will compare values stored in register X with A 
+	JLT addLength               . if X is too far from moveUp, then move it to bottom of the screen
+	J printMousePtr             . jump to printMousePtr
 
 addLength LDA screenLength          . moves X from above the screen to bottom (adds screenLength)
-	ADDR A, X
-	J printMousePtr                . add screenLength (move X from top to bottom)
+	ADDR A, X                   . This will then add screenLength i.e. move X from top to bottom
+	J printMousePtr             . jump to printMousePtr
 	
-	                          . move moveDown - almost the same as moveUp
-moveDown LDA symbol             
-	+STCH screen, X           . draw symbol to X, move X moveDown one row
-	LDA screenColumns
-	ADDR A, X                 
-	LDA screenLength
-	COMPR X, A
-	JGT subtractLength              . if X is too far moveDown, move it to top of screen
-	J printMousePtr 
+	                          
+moveDown LDA symbol                   . First load the symbol
+	+STCH screen, X               . draw symbol to X, move X moveDown one row
+	LDA screenColumns             . load screenColumns into Accumulator
+	ADDR A, X                     . Add register A and X
+	LDA screenLength              . load screenLength into Accumulator
+	COMPR X, A                    . this will compare values stored in register X with A
+	JGT subtractLength            . if X is too far from moveDown,then move it to top of screen
+	J printMousePtr               . jump to printMousePtr
 
-subtractLength LDA screenLength         . subtract screenLength (move X from bottom to top)
-	SUBR A, X
-	J printMousePtr                
+subtractLength LDA screenLength         .This will first load screenLength into the accumulator 
+	SUBR A, X                       .This will then subtract the screenLength i.e. (move X from bottom to top)
+	J printMousePtr                 .This will then jump to printMousePtr
 
-help STX tempX               . print help to stdout
-	LDX #0
-	LDA #helpLength              .calculate length of help text
-	SUB #helpText
+help STX tempX                          .This will print help texts to stdout
+	LDX #0                          .Load 0 into X
+	LDA #helpLength                 .This calculates the length of help text
+	SUB #helpText                    
 	SUB #2
 	STA helpLength
 
-helpAndWrite LDA helpText, X        . read from helpText, write to stdout
-	WD #1
-	TIX helpLength               . increment X and compare it to help length
-	JEQ restoreX               
-	J helpAndWrite    
+helpAndWrite LDA helpText, X         .This will read from helpText
+	WD #1                        .This will write to stdout
+	TIX helpLength               .This step increases X and then compare it to help length
+	JEQ restoreX                 .if Equal,it will call restoreX
+	J helpAndWrite               .else it will loop
 
-restoreX LDX tempX . restore X, set A to 0 and go to input
-	LDA #0
-	J printMousePtr                . draw mousePtr on the screen and wait for new input 
+restoreX LDX tempX                   . This will restore X 
+	LDA #0                       . This will set A to 0
+	J printMousePtr              . this will draw mousePtr on the screen and also wait for new input 
 	
 
 	
-writeLastA  STX tempX            . write last bit of A to whole screen
+writeLastA  STX tempX            .This write the last bit of A to the whole screen
 	LDX #0 
 
 loop +STCH screen, X
@@ -165,19 +152,19 @@ loop +STCH screen, X
 	JEQ return
 	J loop
 	
-return LDX tempX             . reload A and X from tempA and tempX
-	LDA tempA
+return LDX tempX             . This reloads X from tempX
+	LDA tempA            . Also reloads A from tempA
 	RSUB               
 	
 halt J halt
 	
 tempX RESW 1     
 tempA RESW 1
-symbol WORD 42                  . drawing symbol
-mousePtr WORD 43                . mousePtr symbol
-currentRow WORD 12              . current row
-screenColumns WORD 80           . screen columns - should be the same as settings in simulator
-screenRows WORD 25              . screen rows    
+symbol WORD 42                  . the symbol being drawn on the screen
+mousePtr WORD 43                . the symbol for the mouseptr
+currentRow WORD 12              . this stores the current row
+screenColumns WORD 80           . no of columns in screen
+screenRows WORD 25              . no of rows in screen  (screenColumns and screenRows should be same in simulator settings as intialized here)
 screenLength WORD 2000
 
 
